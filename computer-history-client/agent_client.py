@@ -9,8 +9,12 @@ to submit prompts and handle responses.
 import os
 import logging
 from typing import List, Dict, Any
+from urllib import response
 from dotenv import load_dotenv
 
+
+from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+from openai import OpenAI
 # Import Azure Identity and OpenAI client libraries
 
 
@@ -25,19 +29,31 @@ class AgentClient:
     """Client for interacting with a Microsoft Foundry agent."""
     
     def __init__(self):
+        # Maintain conversation history (last 3 exchanges)
+      
         """Initialize the agent client with authentication and endpoint."""
         self.agent_endpoint = os.getenv("AGENT_ENDPOINT").replace("/responses", "")
         if not self.agent_endpoint:
             raise ValueError("AGENT_ENDPOINT not found in environment variables")
         
+
+        self.client = OpenAI(
+        api_key=get_bearer_token_provider(
+        DefaultAzureCredential(),
+        "https://ai.azure.com/.default"
+         ),
+         base_url=self.agent_endpoint,
+        default_query={"api-version": "2025-11-15-preview"}
+        )   
+        self.conversation_history = []
+        self.max_history = 3
         # Create OpenAI client authenticated with Azure credentials 
 
 
 
         
         # Maintain conversation history (last 3 exchanges)
-        self.conversation_history: List[Dict[str, Any]] = []
-        self.max_history = 3
+        
     
     def send_message(self, user_message: str) -> str:
         """
@@ -56,12 +72,18 @@ class AgentClient:
         })
         
         try:
+            
             # Initialize assistant message variable
             assistant_message = ""
 
 
 
-            # Send prompt with full conversation history and get response
+            response = self.client.responses.create(
+            input=self.conversation_history
+            )
+
+            assistant_message = response.output_text
+            
 
 
 
